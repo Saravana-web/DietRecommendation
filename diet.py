@@ -41,7 +41,7 @@ def disease_guidelines(disease):
             "Tip": "Follow a low-fat, high-fiber diet."
         },
         "None": {
-            "Avoid": [],
+            "Avoid": ["Nothing to avoid you're healthy"],
             "Prefer": ["Balanced meals"],
             "Tip": "Maintain active lifestyle."
         }
@@ -177,6 +177,12 @@ if submit:
     diet_type = le_target.inverse_transform([pred])[0]
 
     calories = calculate_calories(weight, height, age, gender)
+
+    st.set_page_config(
+    page_title="Diet Recommendation System",
+    page_icon="🥗",
+    layout="wide"
+    )
 
     # Display metrics
     st.metric("🔥 Estimated Daily Calories", f"{calories} kcal")
