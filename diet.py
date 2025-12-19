@@ -58,6 +58,30 @@ def weekly_diet_plan():
         "Saturday": "Smoothie, Fish",
         "Sunday": "Light meals"
     }
+def disease_guidelines(disease):
+    data = {
+        "Diabetes": {
+            "Avoid": ["Sugar", "White rice", "Sweets"],
+            "Prefer": ["Whole grains", "Vegetables", "Low-GI fruits"],
+            "Tip": "Eat small frequent meals and monitor blood sugar."
+        },
+        "Hypertension": {
+            "Avoid": ["Salt", "Pickles", "Fried food"],
+            "Prefer": ["Fruits", "Vegetables", "Low-sodium food"],
+            "Tip": "Reduce salt intake and manage stress."
+        },
+        "Heart Disease": {
+            "Avoid": ["Red meat", "Butter", "Fast food"],
+            "Prefer": ["Oats", "Fish", "Nuts", "Olive oil"],
+            "Tip": "Follow a low-fat, high-fiber diet."
+        },
+        "None": {
+            "Avoid": [],
+            "Prefer": ["Balanced meals"],
+            "Tip": "Maintain an active lifestyle."
+        }
+    }
+    return data.get(disease, data["None"])
 
 def generate_pdf(user, diet, calories, daily_plan, weekly_plan):
     file = "diet_report.pdf"
@@ -149,6 +173,14 @@ if submit:
         "Fat (g)": 60 if "Loss" not in diet else 50
     }
     st.bar_chart(pd.DataFrame(macros, index=[0]).T)
+
+
+    st.subheader("🩺 Disease-Specific Advice")
+    disease_info = disease_guidelines(disease)
+    st.write("**Avoid:**", ", ".join(disease_info["Avoid"]))
+    st.write("**Prefer:**", ", ".join(disease_info["Prefer"]))
+    st.write("**Tip:**", disease_info["Tip"])
+
 
     # ---------------- PDF REPORT ----------------
     st.subheader("📄 Download Diet Report")
