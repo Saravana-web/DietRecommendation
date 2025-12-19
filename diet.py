@@ -2,15 +2,17 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import pickle
+from reportlab.platypus import SimpleDocTemplate, Paragraph
+from reportlab.lib.styles import getSampleStyleSheet
 
-# ------------------ PAGE CONFIG ------------------
+# ---------------- PAGE CONFIG ----------------
 st.set_page_config(
     page_title="Diet Recommendation System",
     page_icon="🥗",
     layout="wide"
 )
 
-# ------------------ FUNCTIONS ------------------
+# ---------------- FUNCTIONS ----------------
 def calculate_calories(weight, height, age, gender):
     if gender == "Male":
         bmr = 10*weight + 6.25*height - 5*age + 5
@@ -18,154 +20,169 @@ def calculate_calories(weight, height, age, gender):
         bmr = 10*weight + 6.25*height - 5*age - 161
     return int(bmr * 1.5)
 
-def get_diet_plan(predicted_diet):
-    if "Gain" in predicted_diet:
+def calculate_macros(weight, diet_type):
+    if "Gain" in diet_type:
+        return {"Protein (g)": weight*2, "Carbs (g)": 300, "Fat (g)": 70}
+    elif "Loss" in diet_type:
+        return {"Protein (g)": weight*1.2, "Carbs (g)": 180, "Fat (g)": 50}
+    else:
+        return {"Protein (g)": weight*1.5, "Carbs (g)": 250, "Fat (g)": 60}
+
+def disease_guidelines(disease):
+    data = {
+        "Diabetes": {
+            "Avoid": ["Sugar", "White rice", "Sweets"],
+            "Prefer": ["Whole grains", "Vegetables", "Low-GI fruits"],
+            "Tip": "Eat small frequent meals and monitor blood sugar."
+        },
+        "Hypertension": {
+            "Avoid": ["Salt", "Pickles", "Fried food"],
+            "Prefer": ["Fruits", "Vegetables", Low-sodium food"],
+            "Tip": "Reduce salt intake and manage stress."
+        },
+        "Heart Disease": {
+            "Avoid": ["Red meat", "Butter", "Fast food"],
+            "Prefer": ["Oats", "Fish", "Nuts", "Olive oil"],
+            "Tip": "Follow a low-fat, high-fiber diet."
+        },
+        "None": {
+            "Avoid": [],
+            "Prefer": ["Balanced meals"],
+            "Tip": "Maintain active lifestyle."
+        }
+    }
+    return data.get(disease, data["None"])
+
+def get_diet_plan(diet):
+    if "Gain" in diet:
         return {
-            "Breakfast": [
-                "🥚 3 boiled eggs / Paneer 120 g",
-                "🍌 1 banana",
-                "🥛 Milk 300 ml",
-                "🌰 Almonds 6–8"
-            ],
-            "Mid-Morning": [
-                "🍎 Apple / Papaya bowl",
-                "🥜 Peanut chikki – 1 piece"
-            ],
-            "Lunch": [
-                "🍚 Rice – 2 cups",
-                "🥣 Dal / Sambar – 1.5 cups",
-                "🍗 Chicken / Paneer – 150 g",
-                "🥗 Vegetables – 1 cup",
-                "🥛 Curd – 1 cup"
-            ],
-            "Evening Snack": [
-                "🥜 Boiled peanuts – 1 cup",
-                "🥤 Fruit smoothie"
-            ],
-            "Dinner": [
-                "🫓 Chapati – 3",
-                "🍳 Egg curry / Paneer – 120 g",
-                "🥛 Warm milk – 200 ml"
-            ]
+            "Breakfast": ["Eggs 3 / Paneer 120g", "Banana", "Milk 300ml"],
+            "Mid-Morning": ["Fruit bowl", "Peanut chikki"],
+            "Lunch": ["Rice 2 cups", "Dal", "Chicken/Paneer 150g", "Veggies"],
+            "Evening": ["Boiled peanuts", "Smoothie"],
+            "Dinner": ["Chapati 3", "Egg curry / Paneer", "Milk"]
+        }
+    elif "Loss" in diet:
+        return {
+            "Breakfast": ["Oats", "Boiled egg", "Green tea"],
+            "Mid-Morning": ["Apple", "Coconut water"],
+            "Lunch": ["Brown rice", "Vegetables", "Grilled protein"],
+            "Evening": ["Roasted chana"],
+            "Dinner": ["Vegetable soup", "Salad"]
+        }
+    else:
+        return {
+            "Breakfast": ["Idli/Dosa", "Sambar", "Fruit"],
+            "Mid-Morning": ["Buttermilk", "Nuts"],
+            "Lunch": ["Rice", "Dal", "Veg curry", "Curd"],
+            "Evening": ["Fruit salad", "Tea"],
+            "Dinner": ["Chapati", "Veg curry", "Milk"]
         }
 
-    elif "Loss" in predicted_diet:
-        return {
-            "Breakfast": [
-                "🥣 Oats – 40 g",
-                "🥚 1 boiled egg / Sprouts 1 cup",
-                "🍵 Green tea"
-            ],
-            "Mid-Morning": [
-                "🍊 Orange / Apple",
-                "🥥 Coconut water"
-            ],
-            "Lunch": [
-                "🍚 Brown rice – 1 cup",
-                "🥗 Boiled vegetables – 1.5 cups",
-                "🍗 Grilled chicken / Paneer – 100 g",
-                "🥣 Dal – 1 cup"
-            ],
-            "Evening Snack": [
-                "🥜 Roasted chana – handful",
-                "🍵 Green tea"
-            ],
-            "Dinner": [
-                "🥣 Vegetable soup – 1 bowl",
-                "🥗 Fresh salad",
-                "🥚 1 boiled egg"
-            ]
-        }
+def weekly_diet_plan():
+    return {
+        "Monday": "Idli, Rice, Veg curry",
+        "Tuesday": "Oats, Chapati, Dal",
+        "Wednesday": "Dosa, Rice, Sambar",
+        "Thursday": "Upma, Brown rice",
+        "Friday": "Poha, Paneer",
+        "Saturday": "Smoothie, Fish",
+        "Sunday": "Light meals"
+    }
 
-    else:  # Balanced Diet
-        return {
-            "Breakfast": [
-                "🥞 2 idli / 1 dosa",
-                "🥣 Sambar – 1 cup",
-                "🍎 1 fruit"
-            ],
-            "Mid-Morning": [
-                "🥛 Buttermilk – 1 glass",
-                "🥜 Groundnuts – handful"
-            ],
-            "Lunch": [
-                "🍚 Rice – 1.5 cups",
-                "🥣 Dal – 1 cup",
-                "🥗 Vegetable curry – 1 cup",
-                "🥛 Curd – 1 cup"
-            ],
-            "Evening Snack": [
-                "🍓 Fruit salad",
-                "☕ Tea / Coffee (less sugar)"
-            ],
-            "Dinner": [
-                "🫓 Chapati – 2",
-                "🥗 Vegetable curry – 1 cup",
-                "🥛 Milk – 1 glass"
-            ]
-        }
+def generate_pdf(user, diet, calories):
+    file = "diet_report.pdf"
+    doc = SimpleDocTemplate(file)
+    styles = getSampleStyleSheet()
+    content = []
 
-# ------------------ HEADER ------------------
-st.markdown(
-    "<h1 style='text-align:center;'>🥗 Personalized Diet Recommendation System</h1>",
-    unsafe_allow_html=True
-)
-st.markdown(
-    "<p style='text-align:center;'>Get a scientifically suggested diet plan based on your health profile</p>",
-    unsafe_allow_html=True
-)
+    content.append(Paragraph("<b>Personalized Diet Report</b>", styles["Title"]))
+    for k, v in user.items():
+        content.append(Paragraph(f"{k}: {v}", styles["Normal"]))
+    content.append(Paragraph(f"Diet Type: {diet}", styles["Normal"]))
+    content.append(Paragraph(f"Calories/day: {calories}", styles["Normal"]))
 
-# ------------------ LOAD MODEL ------------------
-try:
-    with open("diet_model.pkl", "rb") as f:
-        saved = pickle.load(f)
-    model = saved["model"]
-    le_gender = saved["le_gender"]
-    le_disease = saved["le_disease"]
-    le_target = saved["le_target"]
-except:
-    st.error("❌ Model file not found. Please upload diet_model.pkl")
-    st.stop()
+    doc.build(content)
+    return file
 
-# ------------------ SIDEBAR INPUT ------------------
+# ---------------- HEADER ----------------
+st.markdown("<h1 style='text-align:center;'>🥗 Personalized Diet Recommendation System</h1>", unsafe_allow_html=True)
+
+# ---------------- LOAD MODEL ----------------
+with open("diet_model.pkl", "rb") as f:
+    saved = pickle.load(f)
+
+model = saved["model"]
+le_gender = saved["le_gender"]
+le_disease = saved["le_disease"]
+le_target = saved["le_target"]
+
+# ---------------- SIDEBAR ----------------
 with st.sidebar:
     st.header("🧑 User Details")
     age = st.slider("Age", 18, 90, 30)
     gender = st.selectbox("Gender", le_gender.classes_)
-    weight_kg = st.number_input("Weight (kg)", 30.0, 150.0, 60.0, step=0.5)
-    height_cm = st.number_input("Height (cm)", 120.0, 220.0, 170.0, step=0.5)
-    bmi = st.number_input("BMI", 15.0, 40.0, round(weight_kg / ((height_cm/100)**2), 1))
-    disease_type = st.selectbox("Disease Type", le_disease.classes_)
-    st.markdown("---")
-    submit = st.button("🍽️ Get Diet Recommendation")
+    weight = st.number_input("Weight (kg)", 30.0, 150.0, 60.0)
+    height = st.number_input("Height (cm)", 120.0, 220.0, 170.0)
+    bmi = round(weight / ((height/100)**2), 1)
+    disease = st.selectbox("Disease", le_disease.classes_)
+    submit = st.button("🍽 Get Recommendation")
 
-# ------------------ PREDICTION ------------------
+# ---------------- MAIN LOGIC ----------------
 if submit:
-    test_gender = le_gender.transform([gender])[0]
-    test_disease = le_disease.transform([disease_type])[0]
+    X = [[
+        age,
+        height,
+        weight,
+        bmi,
+        le_gender.transform([gender])[0],
+        le_disease.transform([disease])[0]
+    ]]
 
-    test_X = pd.DataFrame([[
-        age, height_cm, weight_kg, bmi, test_gender, test_disease
-    ]], columns=["Age", "Height_cm", "Weight_kg", "BMI", "Gender", "Disease_Type"])
+    pred = int(round(model.predict(X)[0]))
+    pred = max(0, min(pred, len(le_target.classes_) - 1))
+    diet = le_target.inverse_transform([pred])[0]
 
-    pred_cont = model.predict(test_X)[0]
-    pred_class = int(round(pred_cont))
-    pred_class = max(0, min(pred_class, len(le_target.classes_) - 1))
-    predicted_diet = le_target.inverse_transform([pred_class])[0]
+    calories = calculate_calories(weight, height, age, gender)
+    macros = calculate_macros(weight, diet)
+    plan = get_diet_plan(diet)
+    disease_info = disease_guidelines(disease)
 
-    calories = calculate_calories(weight_kg, height_cm, age, gender)
-    diet_plan = get_diet_plan(predicted_diet)
+    st.subheader("✅ Recommendation Summary")
+    st.metric("Diet Type", diet)
+    st.metric("Calories/day", calories)
+    st.metric("BMI", bmi)
 
-    # ------------------ RESULTS ------------------
-    st.markdown("## ✅ Your Diet Recommendation")
-    col1, col2, col3 = st.columns(3)
-    col1.metric("🍽 Diet Type", predicted_diet)
-    col2.metric("🔥 Calories / day", f"{calories} kcal")
-    col3.metric("⚖ BMI", bmi)
+    st.subheader("📅 Daily Diet Plan")
+    for meal, foods in plan.items():
+        st.markdown(f"**{meal}**")
+        for f in foods:
+            st.write("•", f)
 
-    st.markdown("## 📅 Detailed Daily Diet Plan")
+    st.subheader("📆 7-Day Diet Plan")
+    for day, meal in weekly_diet_plan().items():
+        st.write(f"**{day}:** {meal}")
 
-    for meal, items in diet_plan.items():
-        st.markdown(f"### {meal}")
-        for food in items:
-            st.write("•", food)
+    st.subheader("📊 Macro Nutrients")
+    st.bar_chart(pd.DataFrame(macros, index=[0]).T)
+
+    st.subheader("🩺 Disease-Specific Advice")
+    st.write("**Avoid:**", ", ".join(disease_info["Avoid"]))
+    st.write("**Prefer:**", ", ".join(disease_info["Prefer"]))
+    st.write("**Tip:**", disease_info["Tip"])
+
+    st.subheader("🔔 Meal Reminder")
+    meal = st.selectbox("Meal", ["Breakfast", "Lunch", "Dinner"])
+    time = st.time_input("Reminder Time")
+    if st.button("Set Reminder"):
+        st.success(f"Reminder set for {meal} at {time}")
+
+    st.subheader("📄 Download Diet Report")
+    if st.button("Generate PDF"):
+        pdf = generate_pdf(
+            {"Age": age, "Gender": gender, "Disease": disease},
+            diet,
+            calories
+        )
+        with open(pdf, "rb") as f:
+            st.download_button("Download PDF", f, file_name="diet_report.pdf")
