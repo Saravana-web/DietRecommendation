@@ -178,11 +178,7 @@ if submit:
 
     calories = calculate_calories(weight, height, age, gender)
 
-    st.set_page_config(
-    page_title="Diet Recommendation System",
-    page_icon="🥗",
-    layout="wide"
-    )
+    st.header("Diet Recommendation System")
 
     # Display metrics
     st.metric("🔥 Estimated Daily Calories", f"{calories} kcal")
