@@ -2,8 +2,10 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import pickle
-from reportlab.platypus import SimpleDocTemplate, Paragraph
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
+import datetime
+import time
 
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(
@@ -19,39 +21,6 @@ def calculate_calories(weight, height, age, gender):
     else:
         bmr = 10*weight + 6.25*height - 5*age - 161
     return int(bmr * 1.5)
-
-def calculate_macros(weight, diet_type):
-    if "Gain" in diet_type:
-        return {"Protein (g)": weight*2, "Carbs (g)": 300, "Fat (g)": 70}
-    elif "Loss" in diet_type:
-        return {"Protein (g)": weight*1.2, "Carbs (g)": 180, "Fat (g)": 50}
-    else:
-        return {"Protein (g)": weight*1.5, "Carbs (g)": 250, "Fat (g)": 60}
-
-def disease_guidelines(disease):
-    data = {
-        "Diabetes": {
-            "Avoid": ["Sugar", "White rice", "Sweets"],
-            "Prefer": ["Whole grains", "Vegetables", "Low-GI fruits"],
-            "Tip": "Eat small frequent meals and monitor blood sugar."
-        },
-        "Hypertension": {
-            "Avoid": ["Salt", "Pickles", "Fried food"],
-            "Prefer": ["Fruits", "Vegetables", "Low-sodium food"],
-            "Tip": "Reduce salt intake and manage stress."
-        },
-        "Heart Disease": {
-            "Avoid": ["Red meat", "Butter", "Fast food"],
-            "Prefer": ["Oats", "Fish", "Nuts", "Olive oil"],
-            "Tip": "Follow a low-fat, high-fiber diet."
-        },
-        "None": {
-            "Avoid": ["Nothing to avoid you're healthy"],
-            "Prefer": ["Balanced meals"],
-            "Tip": "Maintain active lifestyle."
-        }
-    }
-    return data.get(disease, data["None"])
 
 def get_diet_plan(diet):
     if "Gain" in diet:
@@ -90,34 +59,47 @@ def weekly_diet_plan():
         "Sunday": "Light meals"
     }
 
-def generate_pdf(user, diet, calories):
+def generate_pdf(user, diet, calories, daily_plan, weekly_plan):
     file = "diet_report.pdf"
     doc = SimpleDocTemplate(file)
     styles = getSampleStyleSheet()
     content = []
 
     content.append(Paragraph("<b>Personalized Diet Report</b>", styles["Title"]))
+    content.append(Spacer(1, 10))
     for k, v in user.items():
         content.append(Paragraph(f"{k}: {v}", styles["Normal"]))
     content.append(Paragraph(f"Diet Type: {diet}", styles["Normal"]))
-    content.append(Paragraph(f"Calories/day: {calories}", styles["Normal"]))
+    content.append(Paragraph(f"Calories/day: {calories} kcal", styles["Normal"]))
+    content.append(Spacer(1, 10))
+
+    content.append(Paragraph("<b>Daily Diet Plan:</b>", styles["Heading2"]))
+    for meal, foods in daily_plan.items():
+        content.append(Paragraph(f"{meal}:", styles["Heading3"]))
+        for f in foods:
+            content.append(Paragraph(f"• {f}", styles["Normal"]))
+    content.append(Spacer(1, 10))
+
+    content.append(Paragraph("<b>Weekly Diet Plan:</b>", styles["Heading2"]))
+    for day, meal in weekly_plan.items():
+        content.append(Paragraph(f"{day}: {meal}", styles["Normal"]))
 
     doc.build(content)
     return file
 
 # ---------------- HEADER ----------------
-st.markdown("<h1 style='text-align:center;'>🥗 Personalized Diet Recommendation System</h1>", unsafe_allow_html=True)
+st.title("🥗 Personalized Diet Recommendation System")
+st.markdown("Get a scientifically suggested diet plan based on your health profile.")
 
 # ---------------- LOAD MODEL ----------------
 with open("diet_model.pkl", "rb") as f:
     saved = pickle.load(f)
-
 model = saved["model"]
 le_gender = saved["le_gender"]
 le_disease = saved["le_disease"]
 le_target = saved["le_target"]
 
-# ---------------- SIDEBAR ----------------
+# ---------------- SIDEBAR INPUT ----------------
 with st.sidebar:
     st.header("🧑 User Details")
     age = st.slider("Age", 18, 90, 30)
@@ -126,6 +108,9 @@ with st.sidebar:
     height = st.number_input("Height (cm)", 120.0, 220.0, 170.0)
     bmi = round(weight / ((height/100)**2), 1)
     disease = st.selectbox("Disease", le_disease.classes_)
+    st.header("🔔 Meal Reminder")
+    reminder_meal = st.selectbox("Meal for Reminder", ["Breakfast", "Lunch", "Dinner"])
+    reminder_time = st.time_input("Reminder Time", value=datetime.time(8,0))
     submit = st.button("🍽 Get Recommendation")
 
 # ---------------- MAIN LOGIC ----------------
@@ -138,51 +123,51 @@ if submit:
         le_gender.transform([gender])[0],
         le_disease.transform([disease])[0]
     ]]
-
     pred = int(round(model.predict(X)[0]))
-    pred = max(0, min(pred, len(le_target.classes_) - 1))
+    pred = max(0, min(pred, len(le_target.classes_)-1))
     diet = le_target.inverse_transform([pred])[0]
 
     calories = calculate_calories(weight, height, age, gender)
-    macros = calculate_macros(weight, diet)
-    plan = get_diet_plan(diet)
-    disease_info = disease_guidelines(disease)
+    daily_plan = get_diet_plan(diet)
+    weekly_plan = weekly_diet_plan()
 
-    st.subheader("✅ Recommendation Summary")
-    st.metric("Diet Type", diet)
-    st.metric("Calories/day", calories)
-    st.metric("BMI", bmi)
-
+    # ---------------- DISPLAY DIET PLANS ----------------
     st.subheader("📅 Daily Diet Plan")
-    for meal, foods in plan.items():
+    for meal, foods in daily_plan.items():
         st.markdown(f"**{meal}**")
-        for f in foods:
-            st.write("•", f)
+        st.markdown("• " + "\n• ".join(foods))
 
-    st.subheader("📆 7-Day Diet Plan")
-    for day, meal in weekly_diet_plan().items():
-        st.write(f"**{day}:** {meal}")
+    st.subheader("📆 7-Day Rotating Diet Plan")
+    for day, meal in weekly_plan.items():
+        st.markdown(f"**{day}:** {meal}")
 
+    # ---------------- MACRO CHART ----------------
     st.subheader("📊 Macro Nutrients")
+    macros = {
+        "Protein (g)": weight*1.5 if "Loss" not in diet else weight*1.2,
+        "Carbs (g)": 250 if "Loss" not in diet else 180,
+        "Fat (g)": 60 if "Loss" not in diet else 50
+    }
     st.bar_chart(pd.DataFrame(macros, index=[0]).T)
 
-    st.subheader("🩺 Disease-Specific Advice")
-    st.write("**Avoid:**", ", ".join(disease_info["Avoid"]))
-    st.write("**Prefer:**", ", ".join(disease_info["Prefer"]))
-    st.write("**Tip:**", disease_info["Tip"])
-
-    st.subheader("🔔 Meal Reminder")
-    meal = st.selectbox("Meal", ["Breakfast", "Lunch", "Dinner"])
-    time = st.time_input("Reminder Time")
-    if st.button("Set Reminder"):
-        st.success(f"Reminder set for {meal} at {time}")
-
+    # ---------------- PDF REPORT ----------------
     st.subheader("📄 Download Diet Report")
-    if st.button("Generate PDF"):
-        pdf = generate_pdf(
-            {"Age": age, "Gender": gender, "Disease": disease},
-            diet,
-            calories
-        )
-        with open(pdf, "rb") as f:
-            st.download_button("Download PDF", f, file_name="diet_report.pdf")
+    pdf_file = generate_pdf(
+        {"Age": age, "Gender": gender, "Weight": weight, "Height": height, "BMI": bmi, "Disease": disease},
+        diet, calories, daily_plan, weekly_plan
+    )
+    with open(pdf_file, "rb") as f:
+        st.download_button("Download PDF", f, file_name="diet_report.pdf")
+
+    # ---------------- MEAL REMINDER ----------------
+    st.subheader("🔔 Meal Reminder Status")
+    now = datetime.datetime.now()
+    reminder_dt = datetime.datetime.combine(now.date(), reminder_time)
+    if reminder_dt < now:
+        reminder_dt += datetime.timedelta(days=1)
+
+    st.info(f"Reminder set for {reminder_meal} at {reminder_dt.strftime('%H:%M')}")
+
+    # Interactive "remind now" button for demo purposes
+    if st.button(f"Trigger {reminder_meal} Reminder Now"):
+        st.success(f"🔔 Time to have your {reminder_meal}!")
