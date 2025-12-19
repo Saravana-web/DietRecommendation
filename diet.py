@@ -46,7 +46,7 @@ def disease_guidelines(disease):
             "Tip": "Follow a low-fat, high-fiber diet."
         },
         "None": {
-            "Avoid": [],
+            "Avoid": ["Nothing to avoid you're healthy],
             "Prefer": ["Balanced meals"],
             "Tip": "Maintain active lifestyle."
         }
