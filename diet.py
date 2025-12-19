@@ -37,7 +37,7 @@ def disease_guidelines(disease):
         },
         "Hypertension": {
             "Avoid": ["Salt", "Pickles", "Fried food"],
-            "Prefer": ["Fruits", "Vegetables", Low-sodium food"],
+            "Prefer": ["Fruits", "Vegetables", "Low-sodium food"],
             "Tip": "Reduce salt intake and manage stress."
         },
         "Heart Disease": {
