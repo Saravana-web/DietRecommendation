@@ -35,15 +35,15 @@ def disease_guidelines(disease):
             "Prefer": ["Fruits", "Vegetables", "Low-sodium food"],
             "Tip": "Reduce salt intake and manage stress."
         },
-        "Heart Disease": {
-            "Avoid": ["Red meat", "Butter", "Fast food"],
-            "Prefer": ["Oats", "Fish", "Nuts", "Olive oil"],
-            "Tip": "Follow a low-fat, high-fiber diet."
+        "Obesity": {
+            "Avoid": ["Fried food", "Sugar", "Processed snacks"],
+            "Prefer": ["Vegetables", "Fruits", "Lean proteins", "Whole grains"],
+            "Tip": "Follow a calorie-controlled diet and exercise regularly."
         },
         "None": {
-            "Avoid": ["Nothing to avoid you're healthy"],
+            "Avoid": ["Nothing to avoid, you're healthy"],
             "Prefer": ["Balanced meals"],
-            "Tip": "Maintain active lifestyle."
+            "Tip": "Maintain an active lifestyle."
         }
     }
     return data.get(disease, data["None"])
